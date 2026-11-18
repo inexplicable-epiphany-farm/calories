@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Calories">
+<title>Calorie Tracker</title>
+<style>
+:root{--bg:#f4f4f6;--card:#fff;--fg:#17171a;--mute:#74747c;--line:#e6e6ea;--acc:#3b6df0;--accfg:#fff;--def:#18877f;--sur:#c97a0c;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f0f12;--card:#1b1b20;--fg:#f1f1f4;--mute:#9a9aa4;--line:#2b2b32;--acc:#7a9bff;--accfg:#0f0f12;--def:#4cc9c2;--sur:#f0b04a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f0f12;--card:#1b1b20;--fg:#f1f1f4;--mute:#9a9aa4;--line:#2b2b32;--acc:#7a9bff;--accfg:#0f0f12;--def:#4cc9c2;--sur:#f0b04a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 -apple-system,system-ui,"SF Pro Text",Roboto,sans-serif;padding:12px 14px 170px;max-width:560px;margin:0 auto}
+button,input,select,textarea{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;font-size:16px}
+h3{display:flex;justify-content:space-between;margin:18px 4px 6px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mute);font-weight:600}
+.card{background:var(--card);border-radius:14px;padding:4px 14px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border:0}
+.row input{width:90px;text-align:right;padding:6px 8px}
+small,.mute{color:var(--mute)}
+.c{text-align:center}
+.nav{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.nav button{font-size:26px;width:44px;height:44px;border-radius:12px;background:var(--card)}
+.nav input{text-align:center;font-weight:600;background:var(--card)}
+.nav .lbl{flex:1;text-align:center;font-weight:600}
+.sum{display:flex;justify-content:space-around;text-align:center;padding:14px}
+.sum div{display:flex;flex-direction:column}
+.sum b{font-size:26px}
+.def{color:var(--def)}.sur{color:var(--sur)}
+.big{font-size:40px;font-weight:700;text-align:center;margin:4px 0}
+.bar{height:8px;border-radius:4px;background:var(--line);position:relative;overflow:hidden;flex:1}
+.bar i{position:absolute;top:0;bottom:0;border-radius:4px}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto}
+.tab{flex:1;padding:10px;border-radius:10px;color:var(--mute);font-weight:600}
+.tab.on{color:var(--acc)}
+#fab{position:fixed;right:18px;bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--acc);color:var(--accfg);border-radius:28px;padding:14px 22px;font-weight:700;box-shadow:0 4px 14px #0004}
+#sh{position:fixed;inset:0;z-index:5}
+.bd{position:absolute;inset:0;background:#0006}
+.pn{position:absolute;left:0;right:0;bottom:0;max-height:88%;overflow:auto;background:var(--card);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:7px 12px;border-radius:16px;background:var(--bg);font-size:14px}
+.chip.on{background:var(--acc);color:var(--accfg)}
+.two{display:flex;gap:8px}
+.pri{background:var(--acc);color:var(--accfg);border-radius:10px;padding:10px 20px;font-weight:700}
+.ghost{padding:10px;color:var(--mute)}
+.dng{color:var(--sur);padding:10px}
+#sl{max-height:34vh;overflow:auto}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(130px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:18px;font-size:14px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.on{opacity:.95}
+textarea{min-height:90px}
+</style></head><body>
+<div id="app"></div>
+<button id="fab" data-a="add">+ Add food</button>
+<div class="tabs"><button class="tab" data-a="tab" data-t="day">Day</button><button class="tab" data-a="tab" data-t="week">Week</button><button class="tab" data-a="tab" data-t="set">Settings</button></div>
+<div id="sh" hidden></div><div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s),K='calorieTracker.v1';
+const MEALS=['Breakfast','Lunch','Dinner','Snack','Dessert'],ORDER=['Breakfast','Brunch','Lunch','Snack','Dinner','Dessert'];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const iso=d=>{const z=new Date(d.getTime()-d.getTimezoneOffset()*6e4);return z.toISOString().slice(0,10)};
+const parse=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const f=n=>Math.round(n).toLocaleString('en-US'),sg=n=>(n>0?'+':n<0?'−':'')+f(Math.abs(n));
+const lab=d=>parse(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+const SEED=``;
+const SEED_ACT=[];
+function add(s,d,m,n,c){(s.log[d]=s.log[d]||[]).push({id:s.id++,m,n,c});const k=n.trim().toLowerCase(),o=s.foods[k];s.foods[k]={n:o?o.n:n.trim(),c,u:(o?o.u:0)+1}}
+function fresh(){const s={p:{sex:'Female',h:65,w:140,a:30},log:{},act:{},foods:{},id:1},b='2026-09-18';
+ SEED.split('\n').filter(Boolean).forEach(l=>{const[o,m,n,c]=l.split('|');add(s,addDays(b,+o),m,n,+c)});
+ SEED_ACT.forEach((v,i)=>s.act[addDays(b,i)]=v);return s}
+function load(){try{const r=localStorage.getItem(K);if(r)return JSON.parse(r)}catch(e){}return fresh()}
+function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
+let S=load(),day=iso(new Date()),tab='day',wk=wkStart(day),meal=guess();
+function wkStart(d){return addDays(d,-parse(d).getDay())}
+function guess(){const h=new Date().getHours();return h<10?'Breakfast':h<15?'Lunch':h<20?'Dinner':'Snack'}
+const bmr=()=>{const p=S.p;return 10*p.w*.453592+6.25*p.h*2.54-5*p.a+(p.sex==='Female'?-161:5)};
+function calc(d){const e=S.log[d]||[],i=e.reduce((a,x)=>a+x.c,0),b=bmr(),n=b*.2,t=i*.08,a=S.act[d]||0,o=b+n+t+a;return{i,b,n,t,a,o,net:i-o,has:e.length>0}}
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),1400)}
+
+function vDay(){const c=calc(day),e=S.log[day]||[],g=ORDER.map(m=>[m,e.filter(x=>x.m===m)]).filter(x=>x[1].length);
+ return `<div class="nav"><button data-a="d-1">‹</button><input type="date" id="dp" value="${day}"><button data-a="d+1">›</button></div>
+ <div class="card sum"><div><small>In</small><b>${f(c.i)}</b></div><div><small>Out</small><b>${f(c.o)}</b></div><div><small>${c.net>0?'Surplus':'Deficit'}</small><b class="${c.net>0?'sur':'def'}">${sg(c.net)}</b></div></div>
+ ${g.map(([m,xs])=>`<h3>${m}<span>${f(xs.reduce((a,x)=>a+x.c,0))}</span></h3><div class="card">${xs.map(x=>`<div class="row" data-a="edit" data-id="${x.id}"><span>${esc(x.n)}</span><b>${f(x.c)}</b></div>`).join('')}</div>`).join('')||'<p class="mute c">Nothing logged for this day yet.</p>'}
+ <h3>Calories out</h3><div class="card"><div class="row"><span>Resting (BMR)</span><b>${f(c.b)}</b></div><div class="row"><span>Daily movement (20% of BMR)</span><b>${f(c.n)}</b></div><div class="row"><span>Digestion (8% of intake)</span><b>${f(c.t)}</b></div><div class="row"><span>Exercise</span><input id="act" type="number" inputmode="numeric" value="${S.act[day]||''}" placeholder="0"></div></div>`}
+
+function vWeek(){const days=[...Array(7)].map((_,i)=>addDays(wk,i)),cs=days.map(calc),L=cs.filter(c=>c.has);
+ const I=L.reduce((a,c)=>a+c.i,0),O=L.reduce((a,c)=>a+c.o,0),N=I-O,lb=N/3500,mx=Math.max(1,...cs.map(c=>c.has?Math.abs(c.net):0));
+ return `<div class="nav"><button data-a="w-1">‹</button><div class="lbl">${lab(wk)} – ${lab(addDays(wk,6))}</div><button data-a="w+1">›</button></div>
+ <div class="card" style="padding:14px"><div class="mute c">Predicted weight change</div>
+ <div class="big ${N>0?'sur':'def'}">${L.length?(lb>0?'+':lb<0?'−':'')+Math.abs(lb).toFixed(2)+' lb':'–'}</div>
+ <div class="c mute">${L.length?`In ${f(I)} · Out ${f(O)} · Net ${sg(N)}<br>Avg ${sg(N/L.length)} per logged day · ${L.length} of 7 days logged`:'No days logged this week'}</div></div>
+ <h3>Daily net</h3><div class="card">${days.map((d,i)=>{const c=cs[i],w=c.has?Math.max(3,Math.abs(c.net)/mx*50):0;
+ return `<div class="row" data-a="goday" data-d="${d}"><span style="width:62px">${parse(d).toLocaleDateString('en-US',{weekday:'short',day:'numeric'})}</span>
+ <div class="bar">${c.has?`<i class="${c.net>0?'sur':'def'}" style="background:currentColor;${c.net>0?'left:50%':'right:50%'};width:${w}%"></i>`:''}</div>
+ <b style="width:64px;text-align:right" class="${c.net>0?'sur':'def'}">${c.has?sg(c.net):'–'}</b></div>`}).join('')}</div>
+ <p class="mute c" style="font-size:13px">Only days with food logged count, so skipped days do not show up as huge deficits. Estimate uses 3,500 kcal per lb.</p>`}
+
+function vSet(){const p=S.p,fs=Object.entries(S.foods).sort((a,b)=>b[1].u-a[1].u);
+ return `<h3>Profile</h3><div class="card">
+ <div class="row"><span>Sex (for BMR)</span><select data-p="sex" style="width:110px"><option${p.sex==='Female'?' selected':''}>Female</option><option${p.sex==='Male'?' selected':''}>Male</option></select></div>
+ <div class="row"><span>Height (in)</span><input data-p="h" type="number" inputmode="decimal" value="${p.h}"></div>
+ <div class="row"><span>Weight (lbs)</span><input data-p="w" type="number" inputmode="decimal" value="${p.w}"></div>
+ <div class="row"><span>Age</span><input data-p="a" type="number" inputmode="numeric" value="${p.a}"></div>
+ <div class="row"><span>BMR (Mifflin-St Jeor)</span><b>${f(bmr())}</b></div></div>
+ <h3>Remembered foods<span>${fs.length}</span></h3><div class="card">${fs.map(([k,x])=>`<div class="row" data-a="fedit" data-k="${esc(k)}"><span>${esc(x.n)} <small>×${x.u}</small></span><b>${f(x.c)}</b></div>`).join('')}</div>
+ <h3>Backup</h3><div class="card" style="padding:14px"><p class="mute" style="margin-top:0;font-size:14px">Data lives on this device. Tap Show backup, copy the text somewhere safe, and paste it here to restore.</p>
+ <textarea id="bk" placeholder="Backup text"></textarea><div class="two" style="margin-top:8px"><button class="pri" data-a="show">Show backup</button><button class="pri" data-a="restore">Restore</button></div></div>`}
+
+function render(){$('#app').innerHTML=tab==='day'?vDay():tab==='week'?vWeek():vSet();
+ document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));$('#fab').style.display=tab==='day'?'':'none'}
+function sheet(h){$('#sh').innerHTML=`<div class="bd" data-a="close"></div><div class="pn">${h}</div>`;$('#sh').hidden=false}
+function close(){$('#sh').hidden=true;$('#sh').innerHTML=''}
+function fillList(){const q=($('#q').value||'').trim().toLowerCase(),fs=Object.entries(S.foods).filter(([k])=>!q||k.includes(q)).sort((a,b)=>b[1].u-a[1].u).slice(0,12);
+ $('#sl').innerHTML=fs.length?fs.map(([k,x])=>`<div class="row" data-a="pick" data-k="${esc(k)}"><span>${esc(x.n)}</span><b>${f(x.c)}</b></div>`).join(''):'<p class="mute c">New food. Enter calories below.</p>'}
+function addSheet(){sheet(`<div class="chips">${MEALS.map(m=>`<button class="chip${m===meal?' on':''}" data-a="meal" data-m="${m}">${m}</button>`).join('')}</div>
+ <input id="q" placeholder="Search or type a food" autocomplete="off"><div id="sl"></div>
+ <div class="two"><input id="qc" type="number" inputmode="decimal" placeholder="kcal (new foods)"><button class="pri" data-a="addnew">Add</button></div><button class="ghost" data-a="close">Done</button>`);fillList()}
+function editSheet(id){const x=(S.log[day]||[]).find(y=>y.id===id);if(!x)return;
+ sheet(`<input id="en" value="${esc(x.n)}"><div class="two"><input id="ec" type="number" inputmode="decimal" value="${x.c}"><select id="em">${ORDER.map(m=>`<option${m===x.m?' selected':''}>${m}</option>`).join('')}</select></div>
+ <button class="pri" data-a="esave" data-id="${id}">Save</button><button class="dng" data-a="edel" data-id="${id}">Delete entry</button>`)}
+function foodSheet(k){const x=S.foods[k];sheet(`<b>${esc(x.n)}</b><input id="fc" type="number" inputmode="decimal" value="${x.c}"><button class="pri" data-a="fsave" data-k="${esc(k)}">Save calories</button><button class="dng" data-a="fdel" data-k="${esc(k)}">Forget this food</button>`)}
+
+document.addEventListener('click',e=>{const a=e.target.closest('[data-a]');if(!a)return;const d=a.dataset,x=d.a;
+ if(x==='tab'){tab=d.t;render()}
+ else if(x==='d-1'||x==='d+1'){day=addDays(day,x==='d-1'?-1:1);render()}
+ else if(x==='w-1'||x==='w+1'){wk=addDays(wk,x==='w-1'?-7:7);render()}
+ else if(x==='goday'){day=d.d;tab='day';render()}
+ else if(x==='add')addSheet();
+ else if(x==='close')close();
+ else if(x==='meal'){meal=d.m;document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.m===meal))}
+ else if(x==='pick'){const o=S.foods[d.k];add(S,day,meal,o.n,o.c);save();render();fillList();toast('Added '+o.n)}
+ else if(x==='addnew'){const n=$('#q').value.trim(),v=$('#qc').value,o=S.foods[n.toLowerCase()];
+  if(!n)return toast('Enter a food name');
+  if(v===''&&!o)return toast('Enter calories');
+  add(S,day,meal,n,v===''?o.c:Math.round(+v));if(v!==''&&o)S.foods[n.toLowerCase()].c=Math.round(+v);save();render();$('#q').value='';$('#qc').value='';fillList();toast('Added '+n)}
+ else if(x==='edit')editSheet(+d.id);
+ else if(x==='esave'){const o=S.log[day].find(y=>y.id===+d.id),n=$('#en').value.trim()||o.n,c=Math.round(+$('#ec').value)||0;
+  o.n=n;o.c=c;o.m=$('#em').value;const k=n.toLowerCase();S.foods[k]=Object.assign(S.foods[k]||{n,u:1},{c});save();close();render()}
+ else if(x==='edel'){S.log[day]=S.log[day].filter(y=>y.id!==+d.id);save();close();render()}
+ else if(x==='fedit')foodSheet(d.k);
+ else if(x==='fsave'){S.foods[d.k].c=Math.round(+$('#fc').value)||0;save();close();render()}
+ else if(x==='fdel'){delete S.foods[d.k];save();close();render()}
+ else if(x==='show'){const t=$('#bk');t.value=JSON.stringify(S);t.focus();t.select()}
+ else if(x==='restore'){try{const n=JSON.parse($('#bk').value);if(!n.log||!n.foods||!n.p)throw 0;S=n;save();render();toast('Restored')}catch(_){toast('That backup text is not valid')}}
+});
+document.addEventListener('input',e=>{if(e.target.id==='q')fillList()});
+document.addEventListener('change',e=>{const t=e.target;
+ if(t.id==='dp'&&t.value){day=t.value;render()}
+ else if(t.id==='act'){S.act[day]=Math.max(0,Math.round(+t.value)||0);save();render()}
+ else if(t.dataset.p){S.p[t.dataset.p]=t.dataset.p==='sex'?t.value:(+t.value||S.p[t.dataset.p]);save();render()}});
+render();
+</script></body></html>
